@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "envdiff"
+version = "0.1.0"
+description = "对比两份环境变量配置，默认脱敏输出差异"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "eathink" }]
+keywords = ["dotenv", "env", "diff", "secrets", "cli", "ci"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Utilities",
+]
+
+[project.scripts]
+envdiff = "envdiff.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/eathink/envdiff"
+
+[tool.setuptools.packages.find]
+where = ["src"]
