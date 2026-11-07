@@ -1,0 +1,46 @@
+# 对比两份环境变量配置，把差异写进 Job Summary，危险变化让 CI 失败。
+#
+# 用法：
+#   1. 复制到目标仓库的 .github/workflows/env-drift.yml
+#   2. 按需修改 .env.example / .env.ci 的路径
+#   3. 需要对比生产配置时，用 Secret 在运行期生成文件（见下方注释）
+name: env-drift
+
+on:
+  pull_request:
+    paths:
+      - ".env.example"
+      - ".env.ci"
+  schedule:
+    - cron: "17 1 * * 1" # 每周一 01:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装 envdiff
+        # 发布首个 Release 后，建议固定到 tag，例如 @v0.1.0
+        run: python -m pip install "git+https://github.com/eathink/envdiff@main"
+
+      # 可选：生产配置放 Secret，运行期落盘，不进入仓库历史
+      # - name: 写出生产配置
+      #   run: printf '%s\n' "$PROD_ENV" > .env.production
+      #   env:
+      #     PROD_ENV: ${{ secrets.PROD_ENV }}
+
+      - name: 对比环境变量
+        run: |
+          envdiff .env.example .env.ci \
+            --include 'APP_*' \
+            --fail-on removed,changed \
+            --format markdown >> "$GITHUB_STEP_SUMMARY"

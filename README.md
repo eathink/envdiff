@@ -140,6 +140,48 @@ envdiff .env.local .env.prod --fail-on none
 
 打码格式为 `<redacted:{长度}c#{sha256前8位}>`。长度和指纹都来自原值，所以同一份配置重复运行结果稳定，两次打码结果不同就说明值确实变了。
 
+### 在 GitHub Actions 中使用
+
+仓库里有一份可直接复制的示例：[`examples/env-drift.yml`](examples/env-drift.yml)。
+
+```yaml
+name: env-drift
+on:
+  pull_request:
+    paths: [".env.example", ".env.ci"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "git+https://github.com/eathink/envdiff@main"
+      - run: |
+          envdiff .env.example .env.ci \
+            --include 'APP_*' \
+            --fail-on removed,changed \
+            --format markdown >> "$GITHUB_STEP_SUMMARY"
+```
+
+几点说明：
+
+- **生产配置不要进仓库**。用 Secret 在运行期生成文件：
+  ```yaml
+  - run: printf '%s\n' "$PROD_ENV" > .env.production
+    env:
+      PROD_ENV: ${{ secrets.PROD_ENV }}
+  ```
+- **固定版本**。示例用 `@main` 是为了能复制即跑；发布正式版本后建议改成 `@v0.1.0` 之类的 tag，避免上游改动影响流水线。
+- **`--fail-on removed,changed`** 让新增变量只展示不拦截，减少无关噪声造成的红灯。
+- Markdown 输出写进 `$GITHUB_STEP_SUMMARY`，PR 页面可以直接看到差异表。
+
 ## 设计取舍
 
 - **不读进程环境变量**：只比较显式给出的文件，避免"我这台机器上能跑"的隐式依赖
