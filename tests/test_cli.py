@@ -226,6 +226,28 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
 
+    def test_stdin_as_right(self):
+        left = self.write("left.env", "A=1\nB=2\n")
+        original = io.StringIO("A=1\n")
+
+        import sys
+
+        saved = sys.stdin
+        try:
+            sys.stdin = original
+            code, out, _ = self.run_cli(left, "-")
+        finally:
+            sys.stdin = saved
+
+        self.assertEqual(code, 1)
+        self.assertIn("- B", out)
+
+    def test_both_sides_stdin_rejected(self):
+        code, _, err = self.run_cli("-", "-")
+
+        self.assertEqual(code, 2)
+        self.assertIn("不能同时为 -", err)
+
     def test_stdin_as_left(self):
         right = self.write("right.env", "A=1\nB=2\n")
         original = io.StringIO("A=1\n")

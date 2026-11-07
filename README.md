@@ -66,10 +66,14 @@ envdiff .env.local .env.prod --format json       # 交给脚本处理
 ### 从标准输入读取
 
 ```bash
-kubectl exec deploy/api -- printenv | envdiff - .env.prod
+# 用现有配置做基准，对比远端进程的环境
+kubectl exec deploy/api -- printenv | envdiff .env.prod -
+
+# 本地配置从标准输入读取，与生产配置对比
+envdiff - .env.prod < .env.local
 ```
 
-`-` 表示左值从 stdin 读取，按 `.env` 格式解析（`KEY=VALUE` 每行一个，`printenv` 的输出可直接用）。
+`-` 表示从标准输入读取，左右两侧都可以用，但不能同时为 `-`（标准输入只能读一次）。内容按 `.env` 格式解析（`KEY=VALUE` 每行一个，`printenv` 的输出可直接用）。
 
 ### 只看部分变量
 

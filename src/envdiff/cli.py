@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="对比两份环境变量配置，默认脱敏输出差异。",
     )
     parser.add_argument("left", metavar="LEFT", help="基准配置：.env / .json 路径，或 - 表示标准输入")
-    parser.add_argument("right", metavar="RIGHT", help="目标配置：.env / .json 路径")
+    parser.add_argument("right", metavar="RIGHT", help="目标配置：.env / .json 路径，或 - 表示标准输入")
     parser.add_argument(
         "-f", "--format", choices=sorted(RENDERERS), default="text", help="输出格式（默认 text）"
     )
@@ -109,6 +109,10 @@ def _filter_entries(entries, include: list[str], exclude: list[str]):
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.left == "-" and args.right == "-":
+        print("envdiff: LEFT 与 RIGHT 不能同时为 -（标准输入只能读一次）", file=sys.stderr)
+        return 2
 
     try:
         left = load_path(args.left)
