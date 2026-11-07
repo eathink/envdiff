@@ -96,6 +96,18 @@ envdiff .env.local .env.prod --exclude 'DEBUG*' --exclude '*_TRACE'
 - run: envdiff .env.example .env.production --format markdown >> "$GITHUB_STEP_SUMMARY"
 ```
 
+默认任何差异（新增 / 删除 / 变更）都返回 1。如果只想拦截危险变化：
+
+```bash
+# 只关心删除和值变更，新增变量不算失败
+envdiff .env.local .env.prod --fail-on removed,changed
+
+# 只输出报告，不计入门禁
+envdiff .env.local .env.prod --fail-on none
+```
+
+`--exit-zero` 优先级最高，存在时永远返回 0。
+
 ### 选项
 
 | 选项 | 说明 |
@@ -105,6 +117,7 @@ envdiff .env.local .env.prod --exclude 'DEBUG*' --exclude '*_TRACE'
 | `--include GLOB` | 只保留 key 匹配该 glob 的变量，可重复 |
 | `--exclude GLOB` | 排除 key 匹配该 glob 的变量，可重复 |
 | `--no-mask` | 输出原文（危险，仅本地调试；会向 stderr 打警告） |
+| `--fail-on STATUSES` | 哪些差异导致退出码 1：`all`（默认）、`none` 或 `added,removed,changed` 的任意组合 |
 | `--exit-zero` | 有差异也返回 0 |
 | `--version` | 版本号 |
 

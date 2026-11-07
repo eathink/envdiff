@@ -7,10 +7,31 @@ import fnmatch
 import sys
 
 from . import __version__
-from .diff import Status, diff_environments, has_differences, summarize
+from .diff import Status, diff_environments, summarize
 from .mask import is_secret_key, mask_value, secret_kinds
 from .parser import ParseError, load_path
 from .render import RENDERERS, Row
+
+_DIFF_STATUSES = (Status.ADDED, Status.REMOVED, Status.CHANGED)
+
+
+def _parse_fail_on(raw: str) -> frozenset[Status]:
+    """把 --fail-on 的值解析成状态集合。"""
+    text = raw.strip().lower()
+    if text in ("", "all"):
+        return frozenset(_DIFF_STATUSES)
+    if text == "none":
+        return frozenset()
+
+    parts = {part.strip() for part in text.split(",") if part.strip()}
+    valid = {status.value for status in _DIFF_STATUSES}
+    invalid = parts - valid
+    if invalid:
+        allowed = ", ".join(sorted(valid))
+        raise argparse.ArgumentTypeError(
+            f"未知状态 {', '.join(sorted(invalid))}；可选 all、none 或 {allowed}"
+        )
+    return frozenset(Status(part) for part in parts)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,6 +63,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-mask", action="store_true", help="输出原文，不脱敏（危险，仅本地调试）"
     )
     parser.add_argument("--exit-zero", action="store_true", help="即使有差异也返回 0")
+    parser.add_argument(
+        "--fail-on",
+        type=_parse_fail_on,
+        default=frozenset(_DIFF_STATUSES),
+        metavar="STATUSES",
+        help="哪些差异导致退出码 1：all（默认）、none 或逗号分隔的 added,removed,changed",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -101,7 +129,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(RENDERERS[args.format](rows, summary, args.left, args.right))
 
-    if has_differences(entries) and not args.exit_zero:
+    failing = {entry.status for entry in entries if entry.status is not Status.SAME}
+    if failing & args.fail_on and not args.exit_zero:
         return 1
     return 0
 

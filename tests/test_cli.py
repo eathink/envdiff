@@ -168,6 +168,64 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
 
+    def test_fail_on_changed_only_ignores_added(self):
+        left = self.write("left.env", "A=1\n")
+        right = self.write("right.env", "A=1\nNEW=2\n")
+
+        code, _, _ = self.run_cli(left, right, "--fail-on", "changed")
+
+        self.assertEqual(code, 0)
+
+    def test_fail_on_added_only_ignores_changed(self):
+        left = self.write("left.env", "A=1\n")
+        right = self.write("right.env", "A=2\n")
+
+        code, _, _ = self.run_cli(left, right, "--fail-on", "added")
+
+        self.assertEqual(code, 0)
+
+    def test_fail_on_matching_status_still_fails(self):
+        left = self.write("left.env", "A=1\nB=1\n")
+        right = self.write("right.env", "A=2\n")
+
+        code, _, _ = self.run_cli(left, right, "--fail-on", "removed")
+
+        self.assertEqual(code, 1)
+
+    def test_fail_on_none_never_fails(self):
+        left = self.write("left.env", "A=1\n")
+        right = self.write("right.env", "A=2\n")
+
+        code, _, _ = self.run_cli(left, right, "--fail-on", "none")
+
+        self.assertEqual(code, 0)
+
+    def test_fail_on_multiple_statuses(self):
+        left = self.write("left.env", "A=1\n")
+        right = self.write("right.env", "A=1\nNEW=2\n")
+
+        code, _, _ = self.run_cli(left, right, "--fail-on", "removed,added")
+
+        self.assertEqual(code, 1)
+
+    def test_fail_on_invalid_value_exits_two(self):
+        left = self.write("left.env", "A=1\n")
+        right = self.write("right.env", "A=1\n")
+
+        with self.assertRaises(SystemExit) as ctx:
+            with redirect_stderr(io.StringIO()):
+                main([left, right, "--fail-on", "bogus"])
+
+        self.assertEqual(ctx.exception.code, 2)
+
+    def test_exit_zero_overrides_fail_on(self):
+        left = self.write("left.env", "A=1\n")
+        right = self.write("right.env", "A=2\n")
+
+        code, _, _ = self.run_cli(left, right, "--fail-on", "changed", "--exit-zero")
+
+        self.assertEqual(code, 0)
+
     def test_stdin_as_left(self):
         right = self.write("right.env", "A=1\nB=2\n")
         original = io.StringIO("A=1\n")
