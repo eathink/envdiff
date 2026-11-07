@@ -129,6 +129,45 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("envdiff:", err)
 
+    def test_include_filter(self):
+        left = self.write("left.env", "APP_HOST=a\nDB_HOST=b\n")
+        right = self.write("right.env", "APP_HOST=x\nDB_HOST=y\n")
+
+        code, out, _ = self.run_cli(left, right, "--include", "APP_*")
+
+        self.assertEqual(code, 1)
+        self.assertIn("APP_HOST", out)
+        self.assertNotIn("DB_HOST", out)
+
+    def test_exclude_filter_can_clear_exit_code(self):
+        left = self.write("left.env", "DEBUG=0\n")
+        right = self.write("right.env", "DEBUG=1\n")
+
+        code, out, _ = self.run_cli(left, right, "--exclude", "DEBUG")
+
+        self.assertEqual(code, 0)
+        self.assertIn("没有差异", out)
+
+    def test_include_and_exclude_combined(self):
+        left = self.write("left.env", "APP_HOST=a\nAPP_DEBUG=0\nDB_HOST=b\n")
+        right = self.write("right.env", "APP_HOST=x\nAPP_DEBUG=1\nDB_HOST=y\n")
+
+        _, out, _ = self.run_cli(
+            left, right, "--include", "APP_*", "--exclude", "APP_DEBUG"
+        )
+
+        self.assertIn("APP_HOST", out)
+        self.assertNotIn("APP_DEBUG", out)
+        self.assertNotIn("DB_HOST", out)
+
+    def test_filters_are_case_sensitive(self):
+        left = self.write("left.env", "app_host=a\n")
+        right = self.write("right.env", "app_host=b\n")
+
+        code, _, _ = self.run_cli(left, right, "--include", "APP_*")
+
+        self.assertEqual(code, 0)
+
     def test_stdin_as_left(self):
         right = self.write("right.env", "A=1\nB=2\n")
         original = io.StringIO("A=1\n")

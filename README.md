@@ -71,6 +71,18 @@ kubectl exec deploy/api -- printenv | envdiff - .env.prod
 
 `-` 表示左值从 stdin 读取，按 `.env` 格式解析（`KEY=VALUE` 每行一个，`printenv` 的输出可直接用）。
 
+### 只看部分变量
+
+```bash
+# 只对比 APP_ 前缀
+envdiff .env.local .env.prod --include 'APP_*'
+
+# 忽略调试类变量，避免它们触发门禁
+envdiff .env.local .env.prod --exclude 'DEBUG*' --exclude '*_TRACE'
+```
+
+`--include` / `--exclude` 接收 glob，可重复，大小写敏感。过滤后的集合同时决定输出、统计和退出码——被排除的差异不会让命令返回 1。
+
 ### 退出码
 
 | 码 | 含义 |
@@ -90,6 +102,8 @@ kubectl exec deploy/api -- printenv | envdiff - .env.prod
 | --- | --- |
 | `-f, --format {text,markdown,json}` | 输出格式，默认 `text` |
 | `--all` | 同时显示未变化的变量 |
+| `--include GLOB` | 只保留 key 匹配该 glob 的变量，可重复 |
+| `--exclude GLOB` | 排除 key 匹配该 glob 的变量，可重复 |
 | `--no-mask` | 输出原文（危险，仅本地调试；会向 stderr 打警告） |
 | `--exit-zero` | 有差异也返回 0 |
 | `--version` | 版本号 |

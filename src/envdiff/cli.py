@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import sys
 
 from . import __version__
@@ -23,6 +24,20 @@ def build_parser() -> argparse.ArgumentParser:
         "-f", "--format", choices=sorted(RENDERERS), default="text", help="输出格式（默认 text）"
     )
     parser.add_argument("--all", action="store_true", help="同时列出未变化的变量")
+    parser.add_argument(
+        "--include",
+        action="append",
+        default=[],
+        metavar="GLOB",
+        help="只保留 key 匹配该 glob 的变量，可重复",
+    )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="GLOB",
+        help="排除 key 匹配该 glob 的变量，可重复",
+    )
     parser.add_argument(
         "--no-mask", action="store_true", help="输出原文，不脱敏（危险，仅本地调试）"
     )
@@ -47,6 +62,23 @@ def _decorate(entry, mask: bool) -> Row:
     return Row(entry.key, entry.status, left, right, masked=sensitive and mask, kinds=kinds)
 
 
+def _filter_entries(entries, include: list[str], exclude: list[str]):
+    """按 key 的 glob 过滤；大小写敏感，与 shell 的 fnmatch 一致。"""
+    if include:
+        entries = [
+            entry
+            for entry in entries
+            if any(fnmatch.fnmatchcase(entry.key, pattern) for pattern in include)
+        ]
+    if exclude:
+        entries = [
+            entry
+            for entry in entries
+            if not any(fnmatch.fnmatchcase(entry.key, pattern) for pattern in exclude)
+        ]
+    return entries
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -58,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     entries = diff_environments(left, right)
+    entries = _filter_entries(entries, args.include, args.exclude)
     summary = summarize(entries)
     rows = [_decorate(entry, mask=not args.no_mask) for entry in entries]
     if not args.all:
